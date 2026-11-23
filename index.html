@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>かんじ ふうせん</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+
+    <!-- Menu: chọn cách chơi -->
+    <section id="screen-menu" class="screen">
+      <div class="menu-hero">
+        <div id="menu-buddy" class="char char-static side-friend" aria-hidden="true"></div>
+        <div>
+          <h1 class="menu-title">かんじ ふうせん</h1>
+          <p class="menu-stars">⭐ <span id="menu-stars">0</span></p>
+        </div>
+      </div>
+      <div id="menu-modes" class="mode-grid"></div>
+      <div class="row menu-footer">
+        <button id="btn-zukan" class="btn secondary" type="button">📕 なかま ずかん</button>
+        <button id="btn-parent" class="btn ghost small" type="button">おうちの ひと</button>
+      </div>
+    </section>
+
+    <!-- Màn hình cho phụ huynh: nhập danh sách chữ Hán -->
+    <section id="screen-parent" class="screen panel" hidden>
+      <h1>おうちの ひと</h1>
+      <p class="hint">
+        1ぎょうに しつもんを 1つ かきます。<br>
+        <code>かんじ | よみかた | いみ | れいぶん | れいぶんでの よみかた</code><br>
+        よみかたが いくつか あるときは <code>、</code>で わけます。<br>
+        <code>#</code> で はじまる ぎょうは かの なまえです。
+      </p>
+      <textarea id="parent-input" spellcheck="false" rows="14"></textarea>
+      <p id="parent-msg" class="error" role="alert"></p>
+      <div class="row">
+        <button id="btn-parent-reset" class="btn ghost small" type="button">きろくを けす</button>
+        <button id="btn-parent-default" class="btn secondary" type="button">もとに もどす</button>
+        <button id="btn-parent-back" class="btn secondary" type="button">もどる</button>
+        <button id="btn-parent-save" class="btn primary" type="button">ほぞん</button>
+      </div>
+    </section>
+
+    <!-- Bản đồ bài -->
+    <section id="screen-map" class="screen" hidden>
+      <header class="hud">
+        <button id="btn-map-back" class="btn small secondary" type="button">もどる</button>
+        <h2 id="map-title" class="hud-title"></h2>
+        <span class="hud-spacer"></span>
+      </header>
+      <div id="map-grid" class="map-grid"></div>
+    </section>
+
+    <!-- Chơi với bóng bay -->
+    <section id="screen-game" class="screen" hidden>
+      <header class="hud">
+        <button id="btn-game-back" class="btn small secondary" type="button">もどる</button>
+        <div class="score">てん <span id="score">0</span></div>
+        <div id="lives" class="lives"></div>
+      </header>
+      <div id="progress" class="progress"><div id="progress-fill" class="progress-fill"></div><span id="progress-icon" class="progress-icon"></span></div>
+
+      <div id="stage" class="stage">
+        <div class="decor"></div>
+        <div class="ground"></div>
+        <div id="buddy" class="char"></div>
+      </div>
+
+      <div id="game-reader-bar" class="reader-bar">
+        <div class="reader" aria-hidden="true"></div>
+        <div class="speech-bubble">
+          <p class="sentence"></p>
+          <p class="voice-note" hidden></p>
+        </div>
+        <button id="btn-game-replay" class="btn-replay" type="button" aria-label="もういちど きく">🔊</button>
+      </div>
+
+      <div id="choices" class="choices"></div>
+    </section>
+
+    <!-- おはなし -->
+    <section id="screen-story" class="screen" hidden>
+      <header class="hud">
+        <button id="btn-story-back" class="btn small secondary" type="button">もどる</button>
+        <h2 id="story-title" class="hud-title"></h2>
+        <div id="story-page" class="story-page"></div>
+      </header>
+
+      <div id="story-stage" class="stage stage-short">
+        <div class="decor"></div>
+        <div class="ground"></div>
+        <div id="story-char" class="char"></div>
+      </div>
+
+      <div id="story-reader-bar" class="reader-bar">
+        <div class="reader" aria-hidden="true"></div>
+        <div class="speech-bubble">
+          <p id="story-text" class="sentence story-text"></p>
+          <p class="voice-note" hidden></p>
+        </div>
+        <button id="btn-story-replay" class="btn-replay" type="button" aria-label="もういちど きく">🔊</button>
+      </div>
+
+      <div id="story-tray" class="tray"></div>
+    </section>
+
+    <!-- Kết quả -->
+    <section id="screen-result" class="screen panel" hidden>
+      <h1 id="result-title"></h1>
+      <p id="result-stars" class="result-stars"></p>
+      <p id="result-score" class="final-score"></p>
+      <div id="result-friends" class="result-friends"></div>
+      <h2 id="result-missed-title">もういちど れんしゅう しよう</h2>
+      <ul id="result-missed" class="missed-list"></ul>
+      <div class="row">
+        <button id="btn-result-back" class="btn secondary" type="button">もどる</button>
+        <button id="btn-result-again" class="btn primary" type="button">もういちど</button>
+      </div>
+    </section>
+
+    <!-- なかま ずかん -->
+    <section id="screen-zukan" class="screen" hidden>
+      <header class="hud">
+        <button id="btn-zukan-back" class="btn small secondary" type="button">もどる</button>
+        <h2 class="hud-title">なかま ずかん</h2>
+        <span class="hud-spacer"></span>
+      </header>
+      <div id="zukan-grid" class="zukan-grid"></div>
+    </section>
+
+    <div id="toast" class="toast" hidden></div>
+  </main>
+
+  <script src="kanji-data.js"></script>
+  <script src="stories.js"></script>
+  <script src="characters.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
