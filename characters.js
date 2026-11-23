@@ -309,7 +309,10 @@ window.GAME_CHARACTERS = (() => {
     writer,
     board,
     backgrounds,
-    lessonOrder: ['punimaru', 'kappa', 'karakasa', 'chochin', 'akaoni'],
+    // Nhân vật và phông nền (chỉ số trong backgrounds) của từng bài L01..L10; bài 6-10 dùng lại nhân vật cũ.
+    lessonOrder: ['punimaru', 'kappa', 'karakasa', 'chochin', 'akaoni', 'punimaru', 'chochin', 'kappa', 'karakasa', 'akaoni'],
+    lessonBackgrounds: [0, 1, 2, 3, 4, 0, 3, 1, 2, 4],
+    bossBackground: 5,
     boss: 'oyabun',
     zukanOrder: ['punimaru', 'kappa', 'karakasa', 'chochin', 'akaoni', 'oyabun'],
   };
