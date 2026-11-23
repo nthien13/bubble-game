@@ -3,20 +3,21 @@
 
   const CH = window.GAME_CHARACTERS;
   const STORIES = window.GAME_STORIES;
-  const DEFAULT_DATA = window.GAME_KANJI_DATA;
+  const LIBRARY = window.GAME_KANJI_LIBRARY;
   const STROKES = window.GAME_KANJI_STROKES || {};
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   // ---------- Cấu hình ----------
-  const KEY_DATA = 'bubble-game-kanji-list-v3';
+  const KEY_ON = 'bubble-game-kanji-on-v1';            // mảng chữ Hán đang bật (ON)
+  const KEY_OLD_LIST = 'bubble-game-kanji-list-v3';    // danh sách chữ dạng chữ cũ: chỉ đọc để chuyển sang KEY_ON
   const KEY_PROGRESS = 'bubble-game-progress-v1';
+  const DEFAULT_ON_LESSONS = ['L01', 'L02', 'L03', 'L04', 'L05']; // 39 chữ đã học khi làm thư viện
   const MAX_LIVES = 3;
   const POINTS = 10;
   const MIN_KANJI = 4;
   const ALL_STAGE_SIZE = 15;          // số câu của ô ぜんぶ
   const TIME_LIMIT_S = 60;
   const NIGATE_CLEAR_STREAK = 3;      // đúng liên tiếp 3 lần thì rời danh sách にがて
-  const SILENCE_MS = 900;             // khoảng lặng thay cho chữ Hán khi đọc câu
   const STROKE_MS = 450;              // thời gian viết 1 nét trên bảng đen
   const LESSON_RISE_MS = [15000, 15000, 14000, 14000, 13000];
   const ALL_RISE_MS = 12000;
@@ -30,17 +31,55 @@
   const SIMILAR = [
     ['大', '天', '木', '犬'], ['日', '月', '田', '目', '白'], ['上', '下', '正', '土'], ['子', '字', '学'],
     ['男', '田', '町'], ['一', '二', '三'], ['七', '十', '九', '千'], ['手', '毛'], ['見', '貝', '目'],
-    ['先', '生', '青'], ['川', '小', '水'], ['八', '人', '入'], ['五', '王'], ['文', '父'],
+    ['先', '生', '青'], ['川', '小', '水'], ['八', '人', '入'], ['五', '王', '玉'], ['文', '父'],
+    ['右', '左', '石', '名'], ['木', '林', '森', '本', '休', '村'], ['口', '中', '田', '日'], ['百', '白', '日'],
+    ['夕', '名', '多'], ['草', '早'], ['力', '九', '刀'], ['虫', '中'], ['円', '内'], ['年', '午'], ['立', '音'],
+    ['耳', '目', '貝'], ['土', '王', '上'], ['金', '全'], ['花', '化'], ['足', '早', '定'],
   ];
   const STAGE_MODES = ['yomi', 'erabi', 'sagashi'];
   const MODES = {
-    yomi: { title: 'よみかた ふうせん', icon: '🎈', desc: 'かんじの よみかたを えらぼう' },
-    erabi: { title: 'かんじ えらび', icon: '✏️', desc: 'ひらがなに あう かんじを えらぼう' },
-    sagashi: { title: 'かんじ さがし', icon: '👂', desc: 'よく きいて ふうせんを わろう' },
-    story: { title: 'おはなし', icon: '📖', desc: 'おはなしに かんじを いれよう' },
-    time: { title: '60びょう チャレンジ', icon: '⏱️', desc: '60びょうで いくつ できるかな' },
-    nigate: { title: 'にがて れんしゅう', icon: '💪', desc: 'まちがえた かんじを れんしゅう' },
+    yomi: { title: 'よみかた ふうせん', icon: 'comment-dots', desc: 'かんじの よみかたを えらぼう' },
+    erabi: { title: 'かんじ えらび', icon: 'pencil', desc: 'ひらがなに あう かんじを えらぼう' },
+    sagashi: { title: 'かんじ さがし', icon: 'ear-listen', desc: 'よく きいて ふうせんを わろう' },
+    story: { title: 'おはなし', icon: 'book-open', desc: 'おはなしに かんじを いれよう' },
+    time: { title: '60びょう チャレンジ', icon: 'stopwatch', desc: '60びょうで いくつ できるかな' },
+    nigate: { title: 'にがて れんしゅう', icon: 'dumbbell', desc: 'まちがえた かんじを れんしゅう' },
   };
+
+  // ---------- Biểu tượng (SVG nội tuyến, chạy offline) ----------
+  // Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0)
+  const ICONS = {
+    'star': { w: 576, h: 512, d: 'M316.9 18C311.6 7 300.4 0 288.1 0s-23.4 7-28.8 18L195 150.3 51.4 171.5c-12 1.8-22 10.2-25.7 21.7s-.7 24.2 7.9 32.7L137.8 329 113.2 474.7c-2 12 3 24.2 12.9 31.3s23 8 33.8 2.3l128.3-68.5 128.3 68.5c10.8 5.7 23.9 4.9 33.8-2.3s14.9-19.3 12.9-31.3L438.5 329 542.7 225.9c8.6-8.5 11.7-21.2 7.9-32.7s-13.7-19.9-25.7-21.7L381.2 150.3 316.9 18z' },
+    'star-empty': { w: 576, h: 512, d: 'M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0zm0 79L235.4 187.2c-3.5 7.1-10.2 12.1-18.1 13.3L99 217.9 184.9 303c5.5 5.5 8.1 13.3 6.8 21L171.4 443.7l105.2-56.2c7.1-3.8 15.6-3.8 22.6 0l105.2 56.2L384.2 324.1c-1.3-7.7 1.2-15.5 6.8-21l85.9-85.1L358.6 200.5c-7.8-1.2-14.6-6.1-18.1-13.3L287.9 79z' },
+    'heart': { w: 512, h: 512, d: 'M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z' },
+    'heart-empty': { w: 512, h: 512, d: 'M225.8 468.2l-2.5-2.3L48.1 303.2C17.4 274.7 0 234.7 0 192.8l0-3.3c0-70.4 50-130.8 119.2-144C158.6 37.9 198.9 47 231 69.6c9 6.4 17.4 13.8 25 22.3c4.2-4.8 8.7-9.2 13.5-13.3c3.7-3.2 7.5-6.2 11.5-9c0 0 0 0 0 0C313.1 47 353.4 37.9 392.8 45.4C462 58.6 512 119.1 512 189.5l0 3.3c0 41.9-17.4 81.9-48.1 110.4L288.7 465.9l-2.5 2.3c-8.2 7.6-19 11.9-30.2 11.9s-22-4.2-30.2-11.9zM239.1 145c-.4-.3-.7-.7-1-1.1l-17.8-20-.1-.1s0 0 0 0c-23.1-25.9-58-37.7-92-31.2C81.6 101.5 48 142.1 48 189.5l0 3.3c0 28.5 11.9 55.8 32.8 75.2L256 430.7 431.2 268c20.9-19.4 32.8-46.7 32.8-75.2l0-3.3c0-47.3-33.6-88-80.1-96.9c-34-6.5-69 5.4-92 31.2c0 0 0 0-.1 .1s0 0-.1 .1l-17.8 20c-.3 .4-.7 .7-1 1.1c-4.5 4.5-10.6 7-16.9 7s-12.4-2.5-16.9-7z' },
+    'book': { w: 448, h: 512, d: 'M96 0C43 0 0 43 0 96L0 416c0 53 43 96 96 96l288 0 32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l0-64c17.7 0 32-14.3 32-32l0-320c0-17.7-14.3-32-32-32L384 0 96 0zm0 384l256 0 0 64L96 448c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16l192 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16zm16 48l192 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16s7.2-16 16-16z' },
+    'book-open': { w: 576, h: 512, d: 'M249.6 471.5c10.8 3.8 22.4-4.1 22.4-15.5l0-377.4c0-4.2-1.6-8.4-5-11C247.4 52 202.4 32 144 32C93.5 32 46.3 45.3 18.1 56.1C6.8 60.5 0 71.7 0 83.8L0 454.1c0 11.9 12.8 20.2 24.1 16.5C55.6 460.1 105.5 448 144 448c33.9 0 79 14 105.6 23.5zm76.8 0C353 462 398.1 448 432 448c38.5 0 88.4 12.1 119.9 22.6c11.3 3.8 24.1-4.6 24.1-16.5l0-370.3c0-12.1-6.8-23.3-18.1-27.6C529.7 45.3 482.5 32 432 32c-58.4 0-103.4 20-123 35.6c-3.3 2.6-5 6.8-5 11L304 456c0 11.4 11.7 19.3 22.4 15.5z' },
+    'volume-high': { w: 640, h: 512, d: 'M533.6 32.5C598.5 85.2 640 165.8 640 256s-41.5 170.7-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64l0 384c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352 64 352c-35.3 0-64-28.7-64-64l0-64c0-35.3 28.7-64 64-64l67.8 0L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z' },
+    'comment-dots': { w: 512, h: 512, d: 'M256 448c141.4 0 256-93.1 256-208S397.4 32 256 32S0 125.1 0 240c0 45.1 17.7 86.8 47.7 120.9c-1.9 24.5-11.4 46.3-21.4 62.9c-5.5 9.2-11.1 16.6-15.2 21.6c-2.1 2.5-3.7 4.4-4.9 5.7c-.6 .6-1 1.1-1.3 1.4l-.3 .3c0 0 0 0 0 0c0 0 0 0 0 0s0 0 0 0s0 0 0 0c-4.6 4.6-5.9 11.4-3.4 17.4c2.5 6 8.3 9.9 14.8 9.9c28.7 0 57.6-8.9 81.6-19.3c22.9-10 42.4-21.9 54.3-30.6c31.8 11.5 67 17.9 104.1 17.9zM128 208a32 32 0 1 1 0 64 32 32 0 1 1 0-64zm128 0a32 32 0 1 1 0 64 32 32 0 1 1 0-64zm96 32a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z' },
+    'pencil': { w: 512, h: 512, d: 'M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1 0 32c0 8.8 7.2 16 16 16l32 0zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4 6.2-22.6 0s-6.2-16.4 0-22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z' },
+    'ear-listen': { w: 512, h: 512, d: 'M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z' },
+    'stopwatch': { w: 448, h: 512, d: 'M176 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l16 0 0 34.4C92.3 113.8 16 200 16 304c0 114.9 93.1 208 208 208s208-93.1 208-208c0-41.8-12.3-80.7-33.5-113.2l24.1-24.1c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L355.7 143c-28.1-23-62.2-38.8-99.7-44.6L256 64l16 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L224 0 176 0zm72 192l0 128c0 13.3-10.7 24-24 24s-24-10.7-24-24l0-128c0-13.3 10.7-24 24-24s24 10.7 24 24z' },
+    'dumbbell': { w: 640, h: 512, d: 'M96 64c0-17.7 14.3-32 32-32l32 0c17.7 0 32 14.3 32 32l0 160 0 64 0 160c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-64-32 0c-17.7 0-32-14.3-32-32l0-64c-17.7 0-32-14.3-32-32s14.3-32 32-32l0-64c0-17.7 14.3-32 32-32l32 0 0-64zm448 0l0 64 32 0c17.7 0 32 14.3 32 32l0 64c17.7 0 32 14.3 32 32s-14.3 32-32 32l0 64c0 17.7-14.3 32-32 32l-32 0 0 64c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-160 0-64 0-160c0-17.7 14.3-32 32-32l32 0c17.7 0 32 14.3 32 32zM416 224l0 64-192 0 0-64 192 0z' },
+    'lock': { w: 448, h: 512, d: 'M144 144l0 48 160 0 0-48c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192l0-48C80 64.5 144.5 0 224 0s144 64.5 144 144l0 48 16 0c35.3 0 64 28.7 64 64l0 192c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 256c0-35.3 28.7-64 64-64l16 0z' },
+    'dragon': { w: 640, h: 512, d: 'M352 124.5l-51.9-13c-6.5-1.6-11.3-7.1-12-13.8s2.8-13.1 8.7-16.1l40.8-20.4L294.4 28.8c-5.5-4.1-7.8-11.3-5.6-17.9S297.1 0 304 0L416 0l32 0 16 0c30.2 0 58.7 14.2 76.8 38.4l57.6 76.8c6.2 8.3 9.6 18.4 9.6 28.8c0 26.5-21.5 48-48 48l-21.5 0c-17 0-33.3-6.7-45.3-18.7L480 160l-32 0 0 21.5c0 24.8 12.8 47.9 33.8 61.1l106.6 66.6c32.1 20.1 51.6 55.2 51.6 93.1C640 462.9 590.9 512 530.2 512L496 512l-64 0L32.3 512c-3.3 0-6.6-.4-9.6-1.4C13.5 507.8 6 501 2.4 492.1C1 488.7 .2 485.2 0 481.4c-.2-3.7 .3-7.3 1.3-10.7c2.8-9.2 9.6-16.7 18.6-20.4c3-1.2 6.2-2 9.5-2.2L433.3 412c8.3-.7 14.7-7.7 14.7-16.1c0-4.3-1.7-8.4-4.7-11.4l-44.4-44.4c-30-30-46.9-70.7-46.9-113.1l0-45.5 0-57zM512 72.3c0-.1 0-.2 0-.3s0-.2 0-.3l0 .6zm-1.3 7.4L464.3 68.1c-.2 1.3-.3 2.6-.3 3.9c0 13.3 10.7 24 24 24c10.6 0 19.5-6.8 22.7-16.3zM130.9 116.5c16.3-14.5 40.4-16.2 58.5-4.1l130.6 87 0 27.5c0 32.8 8.4 64.8 24 93l-232 0c-6.7 0-12.7-4.2-15-10.4s-.5-13.3 4.6-17.7L171 232.3 18.4 255.8c-7 1.1-13.9-2.6-16.9-9s-1.5-14.1 3.8-18.8L130.9 116.5z' },
+    'flag-checkered': { w: 448, h: 512, d: 'M32 0C49.7 0 64 14.3 64 32l0 16 69-17.2c38.1-9.5 78.3-5.1 113.5 12.5c46.3 23.2 100.8 23.2 147.1 0l9.6-4.8C423.8 28.1 448 43.1 448 66.1l0 279.7c0 13.3-8.3 25.3-20.8 30l-34.7 13c-46.2 17.3-97.6 14.6-141.7-7.4c-37.9-19-81.3-23.7-122.5-13.4L64 384l0 96c0 17.7-14.3 32-32 32s-32-14.3-32-32l0-80 0-66L0 64 0 32C0 14.3 14.3 0 32 0zM64 187.1l64-13.9 0 65.5L64 252.6 64 318l48.8-12.2c5.1-1.3 10.1-2.4 15.2-3.3l0-63.9 38.9-8.4c8.3-1.8 16.7-2.5 25.1-2.1l0-64c13.6 .4 27.2 2.6 40.4 6.4l23.6 6.9 0 66.7-41.7-12.3c-7.3-2.1-14.8-3.4-22.3-3.8l0 71.4c21.8 1.9 43.3 6.7 64 14.4l0-69.8 22.7 6.7c13.5 4 27.3 6.4 41.3 7.4l0-64.2c-7.8-.8-15.6-2.3-23.2-4.5l-40.8-12 0-62c-13-3.8-25.8-8.8-38.2-15c-8.2-4.1-16.9-7-25.8-8.8l0 72.4c-13-.4-26 .8-38.7 3.6L128 173.2 128 98 64 114l0 73.1zM320 335.7c16.8 1.5 33.9-.7 50-6.8l14-5.2 0-71.7-7.9 1.8c-18.4 4.3-37.3 5.7-56.1 4.5l0 77.4zm64-149.4l0-70.8c-20.9 6.1-42.4 9.1-64 9.1l0 69.4c13.9 1.4 28 .5 41.7-2.6l22.3-5.2z' },
+    'circle-empty': { w: 512, h: 512, d: 'M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256z' },
+  };
+  // Trả về chuỗi SVG tin cậy; chỉ dùng tên icon cố định, không ghép dữ liệu người dùng
+  function icon(name, cls = '') {
+    const ic = ICONS[name];
+    if (!ic) return '';
+    return `<svg class="fa-icon${cls ? ` ${cls}` : ''}" viewBox="0 0 ${ic.w} ${ic.h}" aria-hidden="true" focusable="false"><path fill="currentColor" d="${ic.d}"/></svg>`;
+  }
+  // Hàng 3 ngôi sao: sao đặc = đã đạt, sao rỗng = chưa đạt
+  const starsHtml = (n) => icon('star', 'star-on').repeat(n) + icon('star-empty', 'star-off').repeat(3 - n);
+  // Thay các chỗ giữ chỗ <span data-icon="..."> trong index.html bằng SVG
+  function hydrateIcons(rootNode) {
+    rootNode.querySelectorAll('[data-icon]').forEach((node) => {
+      node.outerHTML = icon(node.dataset.icon, node.className);
+    });
+  }
 
   // ---------- DOM ----------
   const $ = (id) => document.getElementById(id);
@@ -50,7 +89,7 @@
       story: $('screen-story'), result: $('screen-result'), zukan: $('screen-zukan'),
     },
     menuBuddy: $('menu-buddy'), menuStars: $('menu-stars'), menuModes: $('menu-modes'),
-    parentInput: $('parent-input'), parentMsg: $('parent-msg'),
+    parentList: $('parent-list'), parentCount: $('parent-count'), parentMsg: $('parent-msg'),
     mapTitle: $('map-title'), mapGrid: $('map-grid'),
     score: $('score'), lives: $('lives'),
     progress: $('progress'), progressFill: $('progress-fill'), progressIcon: $('progress-icon'),
@@ -90,33 +129,172 @@
   }
 
   // ---------- Giọng đọc tiếng Nhật ----------
+  // Ưu tiên giọng Soniox qua server.js (GET /api/tts). Không có server (mở bằng file://,
+  // thiếu SONIOX_API_KEY, mất mạng...) thì quay về speechSynthesis của trình duyệt.
+  const TTS_URL = 'api/tts';
+  const TTS_FETCH_MS = 8000;          // quá lâu thì đọc bằng giọng trình duyệt cho câu đó
+  const TTS_MEMO_MAX = 120;           // số câu giữ sẵn trong bộ nhớ (blob URL)
+  // wav im lặng rất ngắn, phát trong thao tác chạm để iOS/Safari cho phép phát audio sau đó
+  const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+
   const speech = {
     supported: 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window,
     voice: null,
     token: 0,
+    // Soniox: null = chưa biết, true = dùng được, false = không dùng được (dùng giọng trình duyệt)
+    cloud: /^https?:$/.test(location.protocol) && typeof Audio === 'function' && 'fetch' in window ? null : false,
+    audio: null,
+    audioUnlocked: false,
+    memo: new Map(),                  // text -> Promise<blob URL>
+    finishAudio: null,                // kết thúc câu Soniox đang phát (dùng khi stop)
+    onchange: null,
 
     init() {
+      if (this.cloud !== false) {
+        this.audio = new Audio();
+        this.audio.preload = 'auto';
+        this.checkCloud();
+      }
       if (!this.supported) return;
       const pickVoice = () => {
         const voices = speechSynthesis.getVoices();
         this.voice = voices.find((v) => /^ja/i.test(v.lang)) || null;
+        if (this.onchange) this.onchange();
       };
       pickVoice();
       speechSynthesis.addEventListener('voiceschanged', pickVoice);
     },
 
+    setCloud(ok) {
+      if (this.cloud === ok) return;
+      this.cloud = ok;
+      if (this.onchange) this.onchange();
+    },
+
+    // Hỏi server đã có SONIOX_API_KEY chưa (không tốn tiền Soniox).
+    checkCloud() {
+      fetch(`${TTS_URL}/status`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((d) => this.setCloud(!!(d && d.ready)))
+        .catch(() => this.setCloud(false));
+    },
+
     // Safari chỉ cho đọc sau thao tác của người dùng: gọi trong sự kiện click.
     unlock() {
+      // trước đó server chưa có khoá (hoặc lỗi): hỏi lại, để không bị kẹt ở giọng trình duyệt
+      if (this.audio && this.cloud === false) {
+        this.setCloud(null);
+        this.checkCloud();
+      }
+      if (this.audio && !this.audioUnlocked) {
+        this.audioUnlocked = true;
+        const a = this.audio;
+        a.src = SILENT_WAV;
+        const p = a.play();
+        if (p && p.catch) p.catch((e) => { if (e && e.name === 'NotAllowedError') this.audioUnlocked = false; });
+      }
       if (!this.supported) return;
       speechSynthesis.speak(new SpeechSynthesisUtterance(''));
     },
 
     stop() {
       this.token += 1;
+      if (this.finishAudio) this.finishAudio();
       if (this.supported) speechSynthesis.cancel();
     },
 
+    // Lấy (và nhớ) audio của 1 câu. Lỗi thì trả về Promise bị reject.
+    fetchAudio(text) {
+      let job = this.memo.get(text);
+      if (job) {
+        this.memo.delete(text);       // đưa lên cuối = mới dùng gần đây
+        this.memo.set(text, job);
+        return job;
+      }
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, TTS_FETCH_MS);
+      job = fetch(`${TTS_URL}?text=${encodeURIComponent(text)}`, ctrl ? { signal: ctrl.signal } : {})
+        .then((res) => {
+          if (!res.ok) {
+            // 404: không có server.js, 503: server thiếu khoá -> thôi dùng Soniox
+            if (res.status === 404 || res.status === 503) this.setCloud(false);
+            throw new Error(`tts ${res.status}`);
+          }
+          return res.blob();
+        })
+        .then((blob) => {
+          if (this.cloud === null) this.setCloud(true);
+          return URL.createObjectURL(blob);
+        })
+        .finally(() => clearTimeout(timer));
+      job.catch(() => { if (this.memo.get(text) === job) this.memo.delete(text); });
+      this.memo.set(text, job);
+      while (this.memo.size > TTS_MEMO_MAX) {
+        const [oldText, oldJob] = this.memo.entries().next().value;
+        this.memo.delete(oldText);
+        oldJob.then((u) => setTimeout(() => URL.revokeObjectURL(u), 30000), () => {});
+      }
+      return job;
+    },
+
+    // Tải trước câu sắp đọc để không phải chờ.
+    prefetch(text) {
+      if (text && this.cloud !== false) this.fetchAudio(text).catch(() => {});
+    },
+
     say(text, token) {
+      if (!text || token !== this.token) return Promise.resolve();
+      if (this.cloud === false) return this.sayLocal(text, token);
+      return this.fetchAudio(text).then(
+        (src) => (token === this.token ? this.playAudio(src, text, token) : undefined),
+        () => this.sayLocal(text, token),
+      );
+    },
+
+    // Phát audio Soniox; Promise xong khi đọc hết, bị stop(), hoặc lỗi (lỗi thì đọc bằng giọng trình duyệt).
+    playAudio(src, text, token) {
+      return new Promise((resolve) => {
+        const a = this.audio;
+        let done = false;
+        let fallback = 0;
+        const cleanup = () => {
+          clearTimeout(fallback);
+          a.onended = null;
+          a.onerror = null;
+          a.onloadedmetadata = null;
+          if (this.finishAudio === finish) this.finishAudio = null;
+        };
+        const finish = () => {
+          if (done) return;
+          done = true;
+          cleanup();
+          a.pause();
+          resolve();
+        };
+        const failToLocal = () => {
+          if (done) return;
+          done = true;
+          cleanup();
+          this.sayLocal(text, token).then(resolve);
+        };
+        // phòng khi không có sự kiện ended
+        const arm = (ms) => {
+          clearTimeout(fallback);
+          fallback = setTimeout(finish, ms);
+        };
+        arm(4000 + text.length * 400);
+        a.onloadedmetadata = () => { if (isFinite(a.duration)) arm(a.duration * 1000 + 1500); };
+        a.onended = finish;
+        a.onerror = failToLocal;
+        this.finishAudio = finish;
+        a.src = src;
+        const p = a.play();
+        if (p && p.catch) p.catch((e) => { if (e && e.name !== 'AbortError') failToLocal(); });
+      });
+    },
+
+    // Giọng có sẵn của trình duyệt (dự phòng khi không có Soniox).
+    sayLocal(text, token) {
       return new Promise((resolve) => {
         if (!this.supported || !text || token !== this.token) {
           resolve();
@@ -143,6 +321,7 @@
     },
 
     note() {
+      if (this.cloud !== false) return ''; // Soniox dùng được (hoặc đang kiểm tra)
       if (!this.supported) return 'この がめんでは こえが でません。';
       if (!this.voice) return 'にほんごの こえが ありません。おうちの ひとに たのんでね。';
       return '';
@@ -150,129 +329,175 @@
   };
 
   // ---------- Dữ liệu chữ Hán ----------
-  let data = null;
-
-  function parseData(text) {
-    let lessons = [];
+  // lib: cả 80 chữ của thư viện (kanji-library.js). data: chỉ các chữ đang bật (ON); game chỉ dùng data.
+  function buildLibrary(src) {
+    const lessons = [];
     const kanjiMap = new Map();
-    const questions = [];
-    const errors = { missing: [], sentence: [] };
-    let lesson = null;
-    const currentLesson = () => {
-      if (!lesson) {
-        lesson = { title: '', kanji: [] };
-        lessons.push(lesson);
-      }
-      return lesson;
-    };
-
-    text.split(/\r?\n/).forEach((raw, index) => {
-      const line = raw.trim();
-      if (!line) return;
-      if (line.startsWith('#')) {
-        lesson = { title: line.replace(/^#+\s*/, '').replace(/^\d+\s*/, ''), kanji: [] };
-        lessons.push(lesson);
-        return;
-      }
-      const cols = line.split(/\s*[|｜\t]\s*/).map((c) => c.trim());
-      const kanji = cols[0] || '';
-      const readings = (cols[1] || '').split(/[、,，]/).map((s) => s.trim()).filter(Boolean);
-      let k = kanjiMap.get(kanji);
-      if (!kanji || (!k && readings.length === 0)) {
-        errors.missing.push(index + 1);
-        return;
-      }
-      if (!k) {
-        k = { kanji, readings: [], meaning: '', lessonRef: currentLesson(), questions: [] };
-        kanjiMap.set(kanji, k);
-        currentLesson().kanji.push(k);
-      }
-      readings.forEach((r) => { if (!k.readings.includes(r)) k.readings.push(r); });
-      if (cols[2] && !k.meaning) k.meaning = cols[2];
-
-      const sentence = cols[3] || '';
-      if (sentence && !sentence.includes(kanji)) {
-        errors.sentence.push(index + 1);
-        return;
-      }
-      const answer = cols[4] || '';
-      if (answer && !k.readings.includes(answer)) k.readings.push(answer);
-      if (!sentence) return;
-      const at = sentence.indexOf(kanji);
-      const q = {
-        key: `${kanji}|${sentence}`,
-        kanji,
-        sentence,
-        before: sentence.slice(0, at),
-        after: sentence.slice(at + kanji.length),
-        answer: answer || k.readings[0],
-      };
-      if (!k.questions.some((x) => x.key === q.key)) {
-        k.questions.push(q);
-        questions.push(q);
-      }
-    });
-
-    // Chữ không có câu ví dụ: mỗi cách đọc là 1 câu hỏi chỉ có chữ đó
-    kanjiMap.forEach((k) => {
-      if (k.questions.length) return;
-      k.readings.forEach((r) => {
-        const q = { key: `${k.kanji}|${r}`, kanji: k.kanji, sentence: '', before: '', after: '', answer: r };
-        k.questions.push(q);
-        questions.push(q);
+    src.forEach((l, index) => {
+      const lesson = { id: l.id, title: l.title, index, kanji: [] };
+      l.kanji.forEach((item) => {
+        const k = {
+          kanji: item.k, on: item.on || [], kun: item.kun || [], meaning: item.mean || '',
+          lesson: l.id, questions: [],
+        };
+        k.readings = [...k.on, ...k.kun];
+        (item.ex || []).forEach(([sentence, answer]) => {
+          const at = sentence.indexOf(k.kanji);
+          if (at < 0 || !answer) return;
+          if (!k.readings.includes(answer)) k.readings.push(answer);
+          const q = {
+            key: `${k.kanji}|${sentence}`, // giữ dạng khoá cũ để danh sách にがて cũ vẫn dùng được
+            kanji: k.kanji,
+            sentence,
+            before: sentence.slice(0, at),
+            after: sentence.slice(at + k.kanji.length),
+            answer,
+          };
+          if (!k.questions.some((x) => x.key === q.key)) k.questions.push(q);
+        });
+        // Chữ không có câu ví dụ: mỗi cách đọc là 1 câu hỏi chỉ có chữ đó
+        if (!k.questions.length) {
+          k.readings.forEach((r) => k.questions.push({ key: `${k.kanji}|${r}`, kanji: k.kanji, sentence: '', before: '', after: '', answer: r }));
+        }
+        kanjiMap.set(k.kanji, k);
+        lesson.kanji.push(k);
       });
+      lessons.push(lesson);
     });
+    const all = [...kanjiMap.values()];
+    return {
+      lessons,
+      kanjiMap,
+      order: all.map((k) => k.kanji),
+      allReadings: [...new Set(all.flatMap((k) => k.readings))],
+      lessonIndex: new Map(lessons.map((l) => [l.id, l.index])),
+    };
+  }
+  const lib = buildLibrary(LIBRARY);
+  const DEFAULT_ON = lib.lessons.filter((l) => DEFAULT_ON_LESSONS.includes(l.id)).flatMap((l) => l.kanji.map((k) => k.kanji));
 
-    lessons = lessons.filter((l) => l.kanji.length);
-    lessons.forEach((l, i) => l.kanji.forEach((k) => { k.lesson = i; }));
-    kanjiMap.forEach((k) => { delete k.lessonRef; });
-
+  // Bài không còn chữ ON thì ẩn; câu hỏi và lựa chọn chỉ lấy từ chữ ON.
+  function buildData(list) {
+    const on = new Set(list);
+    const lessons = lib.lessons
+      .map((l) => ({ ...l, kanji: l.kanji.filter((k) => on.has(k.kanji)) }))
+      .filter((l) => l.kanji.length);
+    const kanjiMap = new Map([...lib.kanjiMap].filter(([c]) => on.has(c)));
+    const questions = [...kanjiMap.values()].flatMap((k) => k.questions);
     return {
       lessons,
       kanjiMap,
       questions,
-      errors,
       allReadings: [...new Set([...kanjiMap.values()].flatMap((k) => k.readings))],
       questionMap: new Map(questions.map((q) => [q.key, q])),
     };
   }
 
-  function validate(d) {
-    if (d.errors.missing.length) {
-      return `${d.errors.missing.join('、')} ぎょうめに かんじか よみかたが ありません。`;
-    }
-    if (d.errors.sentence.length) {
-      return `${d.errors.sentence.join('、')} ぎょうめの れいぶんに その かんじが ありません。`;
-    }
-    if (d.kanjiMap.size < MIN_KANJI) {
-      return `かんじを ${MIN_KANJI}こ いじょう いれてね。いまは ${d.kanjiMap.size}こです。`;
-    }
-    const weak = [...d.kanjiMap.values()].filter((k) => d.allReadings.filter((r) => !k.readings.includes(r)).length < 3);
-    if (weak.length) {
-      return `${weak.map((k) => k.kanji).join('、')} の こたえを つくれません。ほかの よみかたの かんじを ふやしてね。`;
-    }
-    return '';
+  // ---------- Chữ đang bật (ON) ----------
+  let onList = [];
+  let data = null;
+  let migrateNote = '';    // báo cho phụ huynh khi chuyển danh sách cũ có chữ bị bỏ
+
+  const libOrder = (c) => lib.order.indexOf(c);
+  const sortByLibrary = (list) => [...new Set(list)].filter((c) => lib.kanjiMap.has(c)).sort((a, b) => libOrder(a) - libOrder(b));
+
+  function saveOnList() {
+    try { localStorage.setItem(KEY_ON, JSON.stringify(onList)); } catch { /* bỏ qua khi trình duyệt chặn lưu */ }
   }
 
-  function loadDataText() {
-    try { return localStorage.getItem(KEY_DATA) || DEFAULT_DATA; } catch { return DEFAULT_DATA; }
+  // Lấy chữ Hán (cột đầu) từ danh sách dạng chữ cũ: "chữ | cách đọc | ...", dòng # là tên bài.
+  function oldListKanji(text) {
+    const out = [];
+    String(text).split(/\r?\n/).forEach((raw) => {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) return;
+      const c = line.split(/[|｜\t]/)[0].trim();
+      if (c && !out.includes(c)) out.push(c);
+    });
+    return out;
   }
 
-  function useData(text) {
-    const d = parseData(text);
-    const error = validate(d);
-    if (!error) data = d;
-    return error;
+  // Thứ tự ưu tiên: KEY_ON đã lưu -> chuyển từ KEY_OLD_LIST (lần đầu) -> 39 chữ mặc định.
+  function loadOnList() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY_ON) || 'null');
+      if (Array.isArray(saved)) {
+        const list = sortByLibrary(saved.filter((c) => typeof c === 'string'));
+        if (list.length >= MIN_KANJI) return list;
+      }
+    } catch { /* dữ liệu hỏng thì làm lại từ đầu */ }
+
+    let list = DEFAULT_ON;
+    let old = null;
+    try { old = localStorage.getItem(KEY_OLD_LIST); } catch { /* không đọc được thì bỏ qua */ }
+    if (old) {
+      const chars = oldListKanji(old);
+      const kept = sortByLibrary(chars);
+      const dropped = chars.filter((c) => !lib.kanjiMap.has(c));
+      if (kept.length >= MIN_KANJI) {
+        list = kept;
+        if (dropped.length) migrateNote = `まえの リストの ${dropped.join('、')} は ない かんじなので はずしました。`;
+      } else {
+        migrateNote = `まえの リストの かんじが ${MIN_KANJI}こ より すくないので、はじめの かんじに しました。`;
+      }
+      if (migrateNote) console.info(`[kanji] ${migrateNote}`);
+    }
+    onList = sortByLibrary(list);
+    saveOnList();
+    return onList;
   }
+
+  function setOnList(list) {
+    onList = sortByLibrary(list);
+    saveOnList();
+    data = buildData(onList);
+  }
+
+  // Ô trống trong truyện: 〔chữ Hán:cách đọc〕
+  const BLANK_RE = /〔(.+?):(.+?)〕/g;
+  const storyKanji = (story) => [...new Set(story.pages.flatMap((p) => [...p.matchAll(BLANK_RE)].map((m) => m[1])))];
+  // Truyện chỉ hiện khi mọi chữ trong ô trống đều đang ON
+  const visibleStories = () => STORIES.filter((s) => storyKanji(s).every((c) => data.kanjiMap.has(c)));
 
   // ---------- Tiến độ ----------
+  // Sao lưu theo id bài ('L01'...) và 'all'; sao truyện lưu theo lesson của truyện.
   const emptyProgress = () => ({ stars: { yomi: {}, erabi: {}, sagashi: {}, story: {} }, best60: 0, readOk: {}, weak: {} });
+
+  // Bản cũ lưu sao theo số thứ tự (0, 1, ...): bài i -> lib.lessons[i].id, truyện i -> STORIES[i].lesson.
+  function migrateStars(p) {
+    let changed = false;
+    Object.keys(p.stars).forEach((mode) => {
+      const m = p.stars[mode];
+      if (!m || typeof m !== 'object') {
+        p.stars[mode] = {};
+        return;
+      }
+      Object.keys(m).forEach((key) => {
+        if (!/^\d+$/.test(key)) return;
+        const i = Number(key);
+        const target = mode === 'story' ? STORIES[i] && STORIES[i].lesson : lib.lessons[i] && lib.lessons[i].id;
+        if (target === undefined) return; // không biết thuộc bài nào thì giữ nguyên, không làm mất sao
+        m[target] = Math.max(m[target] || 0, Number(m[key]) || 0);
+        delete m[key];
+        changed = true;
+      });
+    });
+    return changed;
+  }
 
   function loadProgress() {
     const base = emptyProgress();
     try {
       const saved = JSON.parse(localStorage.getItem(KEY_PROGRESS) || 'null');
-      if (saved) return { ...base, ...saved, stars: { ...base.stars, ...(saved.stars || {}) } };
+      if (saved) {
+        const p = { ...base, ...saved, stars: { ...base.stars, ...(saved.stars || {}) } };
+        if (!p.readOk || typeof p.readOk !== 'object') p.readOk = {};
+        if (!p.weak || typeof p.weak !== 'object') p.weak = {};
+        if (migrateStars(p)) {
+          try { localStorage.setItem(KEY_PROGRESS, JSON.stringify(p)); } catch { /* bỏ qua khi trình duyệt chặn lưu */ }
+        }
+        return p;
+      }
     } catch { /* dữ liệu hỏng thì bắt đầu lại */ }
     return base;
   }
@@ -294,12 +519,13 @@
     progress.weak[key] += 1;
     if (progress.weak[key] >= NIGATE_CLEAR_STREAK) delete progress.weak[key];
   }
+  // Chỉ lấy câu của chữ đang ON; chữ OFF vẫn giữ trong progress.weak để bật lại thì còn
   const weakQuestions = () => Object.keys(progress.weak).map((key) => data.questionMap.get(key)).filter(Boolean);
 
-  // Bài i mở khi i là bài đầu, hoặc bài trước có ít nhất 1 sao trong cùng cách chơi
+  // Chỉ xét các ô đang hiện: ô mở khi là ô đầu, hoặc ô hiện ngay trước có ít nhất 1 sao trong cùng cách chơi
   function tileKeys(mode) {
-    if (mode === 'story') return STORIES.map((_, i) => i);
-    return [...data.lessons.map((_, i) => i), 'all'];
+    if (mode === 'story') return visibleStories().map((s) => s.lesson);
+    return [...data.lessons.map((l) => l.id), 'all'];
   }
   function isUnlocked(mode, key) {
     const keys = tileKeys(mode);
@@ -308,22 +534,22 @@
     return (progress.stars[mode][keys[idx - 1]] || 0) >= 1;
   }
 
+  // Nhân vật của bài thành bạn khi bài đó (hoặc truyện của bài) có sao, kể cả bài đang ẩn
   function unlockedCharacters() {
     const ids = [];
-    CH.lessonOrder.forEach((id, i) => {
-      const fromStage = STAGE_MODES.some((m) => (progress.stars[m][i] || 0) > 0);
-      const fromStory = STORIES.some((s, si) => s.lesson === i && (progress.stars.story[si] || 0) > 0);
-      if (fromStage || fromStory) ids.push(id);
+    const hasStar = (key) => STAGE_MODES.some((m) => (progress.stars[m][key] || 0) > 0) || (progress.stars.story[key] || 0) > 0;
+    lib.lessons.forEach((l) => {
+      const id = lessonCharId(l.id);
+      if (hasStar(l.id) && !ids.includes(id)) ids.push(id);
     });
-    const bossStage = STAGE_MODES.some((m) => (progress.stars[m].all || 0) > 0);
-    const bossStory = STORIES.some((s, si) => s.lesson === 'all' && (progress.stars.story[si] || 0) > 0);
-    if (bossStage || bossStory) ids.push(CH.boss);
+    if (hasStar('all')) ids.push(CH.boss);
     return ids;
   }
 
   // ---------- Nhân vật, phông nền ----------
-  const lessonCharId = (key) => (key === 'all' ? CH.boss : CH.lessonOrder[key % CH.lessonOrder.length]);
-  const lessonBg = (key) => (key === 'all' ? 5 : key % 5);
+  const lessonNo = (key) => lib.lessonIndex.get(key) || 0;
+  const lessonCharId = (key) => (key === 'all' ? CH.boss : CH.lessonOrder[lessonNo(key) % CH.lessonOrder.length]);
+  const lessonBg = (key) => (key === 'all' ? CH.bossBackground : CH.lessonBackgrounds[lessonNo(key) % CH.lessonBackgrounds.length]);
 
   function mountCharacter(box, id) {
     const c = CH.list[id];
@@ -397,33 +623,26 @@
     t.append(document.createTextNode(q.before), slot, document.createTextNode(q.after));
   }
 
-  // Đọc câu, đến chữ Hán thì im lặng.
-  async function readMuted(q) {
+  // Câu đầy đủ để đọc: chữ Hán thay bằng cách đọc đúng. Giọng chỉ đọc nguyên câu, không đọc từng phần.
+  const fullText = (q) => q.before + q.answer + q.after;
+
+  // Hiện câu nhưng không đọc (đọc trước khi trả lời sẽ lộ cách đọc); tải trước câu đầy đủ để đọc sau khi trả lời.
+  function showSilent(q) {
     speech.stop();
-    const token = speech.token;
+    readerTalk(gameReader, false);
     readerMood(gameReader, null);
     renderSentence(q, q.kanji, 'is-muted');
-    readerTalk(gameReader, true);
-    await speech.say(q.before, token);
-    if (token !== speech.token) return;
-    readerTalk(gameReader, false);
-    gameReader.el.classList.add('is-hush');
-    await wait(SILENCE_MS);
-    if (token !== speech.token) return;
-    gameReader.el.classList.remove('is-hush');
-    readerTalk(gameReader, true);
-    await speech.say(q.after, token);
-    if (token === speech.token) readerTalk(gameReader, false);
+    speech.prefetch(fullText(q));
   }
 
-  // Đọc cả câu với cách đọc cho trước, hiện slotText ở chỗ chữ Hán.
-  function readFull(q, reading, mood, slotText, slotClass) {
+  // Đọc cả câu, hiện slotText ở chỗ chữ Hán.
+  function readFull(q, mood, slotText, slotClass) {
     speech.stop();
     const token = speech.token;
     readerMood(gameReader, mood);
     renderSentence(q, slotText, slotClass);
     readerTalk(gameReader, true);
-    return speech.say(q.before + reading + q.after, token).then(() => {
+    return speech.say(fullText(q), token).then(() => {
       if (token === speech.token) readerTalk(gameReader, false);
     });
   }
@@ -475,44 +694,51 @@
     return pick(fresh.length ? fresh : k.questions);
   }
 
-  const firstReading = (kanji) => {
-    const k = data.kanjiMap.get(kanji);
-    return k ? k.readings[0] : '';
-  };
-
   function readingChoices(q) {
-    const k = data.kanjiMap.get(q.kanji);
+    const k = data.kanjiMap.get(q.kanji) || lib.kanjiMap.get(q.kanji);
     const own = new Set(k.readings);
     // có câu ví dụ: cách đọc khác của chính chữ đó là lựa chọn sai đặt trước (はち so với はっ)
     const ownOthers = q.sentence ? shuffle(k.readings.filter((r) => r !== q.answer)).slice(0, 2) : [];
+    // cùng kiểu chữ (ひらがな/カタカナ) với đáp án đặt trước
+    const byScript = (list) => [
+      ...list.filter((r) => isKatakana(r) === isKatakana(q.answer)),
+      ...list.filter((r) => isKatakana(r) !== isKatakana(q.answer)),
+    ];
     const pool = shuffle(data.allReadings.filter((r) => !own.has(r)));
-    const same = pool.filter((r) => isKatakana(r) === isKatakana(q.answer));
-    const other = pool.filter((r) => isKatakana(r) !== isKatakana(q.answer));
-    const wrongs = [...ownOthers, ...same, ...other].slice(0, 3);
-    return shuffle([q.answer, ...wrongs]).map((t) => ({ text: t, reading: t, ok: t === q.answer }));
+    // ít chữ ON quá thì mượn cách đọc của các chữ khác trong thư viện
+    const extra = shuffle(lib.allReadings.filter((r) => !own.has(r) && !pool.includes(r)));
+    const wrongs = [...ownOthers, ...byScript(pool), ...byScript(extra)].slice(0, 3);
+    return shuffle([q.answer, ...wrongs]).map((t) => ({ text: t, ok: t === q.answer }));
   }
 
   // Lựa chọn sai khi chọn chữ Hán: ưu tiên chữ cùng âm, chữ trông giống, chữ cùng bài.
   // Không có câu ví dụ thì bỏ chữ cùng âm, vì khi đó không phân biệt được.
+  // Lấy từ chữ ON trước; thiếu thì mượn chữ trong thư viện.
   function kanjiDistractors(target, reading, count, lesson, allowSameReading) {
-    const all = [...data.kanjiMap.keys()].filter((c) => c !== target);
-    const sameReading = all.filter((c) => data.kanjiMap.get(c).readings.includes(reading));
-    const usable = allowSameReading ? all : all.filter((c) => !sameReading.includes(c));
-    const similar = SIMILAR.filter((g) => g.includes(target)).flat().filter((c) => usable.includes(c));
-    const sameLesson = usable.filter((c) => data.kanjiMap.get(c).lesson === lesson);
-    const order = [...(allowSameReading ? shuffle(sameReading) : []), ...shuffle(similar), ...shuffle(sameLesson), ...shuffle(usable)];
+    const rank = (map) => {
+      const all = [...map.keys()].filter((c) => c !== target);
+      const sameReading = all.filter((c) => map.get(c).readings.includes(reading));
+      const usable = allowSameReading ? all : all.filter((c) => !sameReading.includes(c));
+      const similar = SIMILAR.filter((g) => g.includes(target)).flat().filter((c) => usable.includes(c));
+      const sameLesson = usable.filter((c) => map.get(c).lesson === lesson);
+      return [...(allowSameReading ? shuffle(sameReading) : []), ...shuffle(similar), ...shuffle(sameLesson), ...shuffle(usable)];
+    };
     const out = [];
-    for (const c of order) {
-      if (!out.includes(c)) out.push(c);
-      if (out.length === count) break;
-    }
+    const add = (list) => {
+      for (const c of list) {
+        if (out.length >= count) break;
+        if (!out.includes(c)) out.push(c);
+      }
+    };
+    add(rank(data.kanjiMap));
+    if (out.length < count) add(rank(lib.kanjiMap));
     return out;
   }
 
   function kanjiChoices(q) {
-    const k = data.kanjiMap.get(q.kanji);
+    const k = lib.kanjiMap.get(q.kanji);
     const wrongs = kanjiDistractors(q.kanji, q.answer, 3, k.lesson, !!q.sentence);
-    return shuffle([q.kanji, ...wrongs]).map((c) => ({ text: c, reading: firstReading(c), ok: c === q.kanji }));
+    return shuffle([q.kanji, ...wrongs]).map((c) => ({ text: c, ok: c === q.kanji }));
   }
 
   // ---------- Menu ----------
@@ -525,7 +751,7 @@
       card.type = 'button';
       card.className = 'mode-card';
       card.innerHTML = '<span class="mode-icon"></span><span class="mode-title"></span><span class="mode-desc"></span><span class="mode-extra"></span>';
-      card.querySelector('.mode-icon').textContent = m.icon;
+      card.querySelector('.mode-icon').innerHTML = icon(m.icon);
       card.querySelector('.mode-title').textContent = m.title;
       card.querySelector('.mode-desc').textContent = m.desc;
       let extra = '';
@@ -552,12 +778,21 @@
     mapMode = mode;
     el.mapTitle.textContent = MODES[mode].title;
     el.mapGrid.innerHTML = '';
+    // Số trên ô là số bài trong thư viện (bài ẩn thì số bị nhảy, để khớp với sách)
     const tiles = mode === 'story'
-      ? STORIES.map((s, i) => ({ key: i, num: s.lesson === 'all' ? 'ぜんぶ' : String(i + 1), label: s.title, charId: s.character }))
+      ? visibleStories().map((s) => ({
+        key: s.lesson, num: s.lesson === 'all' ? 'ぜんぶ' : String(lessonNo(s.lesson) + 1), label: s.title, charId: s.character,
+      }))
       : [
-        ...data.lessons.map((l, i) => ({ key: i, num: String(i + 1), label: l.title, charId: lessonCharId(i) })),
+        ...data.lessons.map((l) => ({ key: l.id, num: String(l.index + 1), label: l.title, charId: lessonCharId(l.id) })),
         { key: 'all', num: 'ぜんぶ', label: 'ぜんぶの かんじ', charId: CH.boss },
       ];
+    if (!tiles.length) {
+      const p = document.createElement('p');
+      p.className = 'map-empty';
+      p.textContent = 'おはなしは まだ ないよ。';
+      el.mapGrid.append(p);
+    }
     tiles.forEach((t) => {
       const open = isUnlocked(mode, t.key);
       const stars = progress.stars[mode][t.key] || 0;
@@ -567,9 +802,9 @@
       tile.disabled = !open;
       tile.innerHTML = '<span class="tile-num"></span><span class="tile-char"></span><span class="tile-label"></span><span class="tile-stars"></span>';
       tile.querySelector('.tile-num').textContent = t.num;
-      tile.querySelector('.tile-char').innerHTML = open ? staticChar(t.charId, false) : '🔒';
+      tile.querySelector('.tile-char').innerHTML = open ? staticChar(t.charId, false) : icon('lock', 'tile-lock');
       tile.querySelector('.tile-label').textContent = t.label;
-      tile.querySelector('.tile-stars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+      tile.querySelector('.tile-stars').innerHTML = starsHtml(stars);
       tile.addEventListener('click', () => (mode === 'story' ? startStory(t.key) : startRun(mode, t.key)));
       el.mapGrid.append(tile);
     });
@@ -579,6 +814,12 @@
   // ---------- Chơi với bóng bay ----------
   function startRun(mode, lessonKey) {
     stopRun();
+    const lesson = STAGE_MODES.includes(mode) && lessonKey !== 'all' ? data.lessons.find((l) => l.id === lessonKey) : null;
+    // bài vừa bị tắt hết chữ (ví dụ bấm もういちど sau khi phụ huynh đổi ON) thì về menu
+    if (STAGE_MODES.includes(mode) && lessonKey !== 'all' && !lesson) {
+      renderMenu();
+      return;
+    }
     speech.unlock();
     lastStart = { mode, key: lessonKey };
     const r = newRun({
@@ -589,15 +830,16 @@
     });
 
     if (mode === 'time') {
-      const openLessons = data.lessons.map((_, i) => i).filter((i) => isUnlocked('yomi', i));
+      const openLessons = data.lessons.map((l) => l.id).filter((id) => isUnlocked('yomi', id));
       r.pool = data.questions.filter((q) => openLessons.includes(data.kanjiMap.get(q.kanji).lesson));
+      if (!r.pool.length) r.pool = data.questions.slice();
     } else if (mode === 'nigate') {
       r.queue = shuffle(weakQuestions());
       r.total = r.queue.length;
     } else {
       const kanjiList = lessonKey === 'all'
         ? shuffle([...data.kanjiMap.values()]).slice(0, ALL_STAGE_SIZE)
-        : data.lessons[lessonKey].kanji;
+        : lesson.kanji;
       r.queue = shuffle(kanjiList.map(pickQuestion));
       r.total = r.queue.length;
     }
@@ -623,18 +865,18 @@
   function renderHud() {
     const r = run;
     el.score.textContent = r.score;
-    if (r.mode === 'time') el.lives.textContent = `⏱ ${r.timeLeft}`;
+    if (r.mode === 'time') el.lives.innerHTML = `${icon('stopwatch', 'timer-icon')} ${Number(r.timeLeft)}`;
     else if (r.mode === 'nigate') el.lives.textContent = '';
     else {
       el.lives.innerHTML = Array.from({ length: MAX_LIVES }, (_, i) =>
-        `<span class="heart${i < r.lives ? '' : ' lost'}">♥</span>`).join('');
+        i < r.lives ? `<span class="heart">${icon('heart')}</span>` : `<span class="heart lost">${icon('heart-empty')}</span>`).join('');
     }
     el.progress.hidden = r.mode === 'time';
     const boss = r.lessonKey === 'all' && STAGE_MODES.includes(r.mode);
     el.progress.classList.toggle('is-boss', boss);
     const done = r.total ? r.solved / r.total : 0;
     el.progressFill.style.width = `${(boss ? 1 - done : done) * 100}%`;
-    el.progressIcon.textContent = boss ? '👹' : '🏁';
+    el.progressIcon.innerHTML = boss ? icon('dragon') : icon('flag-checkered');
   }
 
   function riseMs(type) {
@@ -643,7 +885,7 @@
     if (r.mode === 'time') ms = TIME_RISE_MS;
     else if (r.mode === 'nigate') ms = NIGATE_RISE_MS;
     else if (r.lessonKey === 'all') ms = Math.max(ALL_MIN_MS, ALL_RISE_MS - r.solved * ALL_STEP_MS);
-    else ms = LESSON_RISE_MS[Math.min(r.lessonKey, LESSON_RISE_MS.length - 1)];
+    else ms = LESSON_RISE_MS[Math.min(lessonNo(r.lessonKey), LESSON_RISE_MS.length - 1)];
     if (type === 'sagashi') ms += SAGASHI_EXTRA_MS;
     return ms;
   }
@@ -715,10 +957,21 @@
 
     renderChoices(type === 'yomi' ? readingChoices(q) : kanjiChoices(q), type);
     charReact(el.buddy, 'throwing', 500);
-    r.replay = type === 'yomi'
-      ? () => readMuted(q)
-      : () => readFull(q, q.answer, null, q.answer, 'is-kana');
-    r.replay();
+    // よみかた: đọc câu sẽ lộ đáp án, nên im lặng đến khi trả lời xong và tắt nút nghe lại.
+    // かんじ えらび: âm thanh là đề bài (đáp án là chữ Hán), đọc nguyên câu ngay.
+    if (type === 'yomi') {
+      setReplay(null);
+      showSilent(q);
+    } else {
+      setReplay(() => readFull(q, null, q.answer, 'is-kana'));
+      r.replay();
+    }
+  }
+
+  // Gắn hàm cho nút nghe lại; không có thì tắt nút.
+  function setReplay(fn) {
+    run.replay = fn;
+    $('btn-game-replay').disabled = !fn;
   }
 
   // かんじ さがし: 4 bóng chữ Hán bay lên từ dưới, bấm bóng đúng
@@ -726,7 +979,7 @@
     const r = run;
     el.choices.innerHTML = '<p class="choices-hint">ただしい かんじの ふうせんを タッチ！</p>';
     el.choices.classList.remove('is-kanji');
-    const k = data.kanjiMap.get(q.kanji);
+    const k = lib.kanjiMap.get(q.kanji);
     const kanjis = shuffle([q.kanji, ...kanjiDistractors(q.kanji, q.answer, 3, k.lesson, !!q.sentence)]);
     const W = el.stage.clientWidth;
     const H = el.stage.clientHeight;
@@ -756,7 +1009,7 @@
       placeBalloon(b);
     });
     charReact(el.buddy, 'throwing', 500);
-    r.replay = () => readFull(q, q.answer, null, '？', 'is-hidden');
+    setReplay(() => readFull(q, null, '？', 'is-hidden'));
     r.replay();
   }
 
@@ -831,7 +1084,7 @@
     b.gone = true;
     b.node.classList.add('is-dud');
     setTimeout(() => b.node.remove(), 700);
-    resolveWrong({ text: b.kanji, reading: firstReading(b.kanji) });
+    resolveWrong({ text: b.kanji });
   }
 
   const answerBalloon = () => run.balloons.find((b) => b.isAnswer);
@@ -856,9 +1109,9 @@
     const cx = b.x + b.bw / 2;
     const cy = b.y + b.bodyH / 2;
     burst(el.stage, cx, cy, b.color);
-    floatLabel(el.stage, `${slotAnswer(q, type)} ⭕`, cx, cy, false);
+    floatLabel(el.stage, slotAnswer(q, type), cx, cy, false, 'circle-empty');
     charReact(el.buddy, 'good', 1000);
-    const spoken = readFull(q, q.answer, 'is-right', slotAnswer(q, type), 'is-right');
+    const spoken = readFull(q, 'is-right', slotAnswer(q, type), 'is-right');
     // 60びょう チャレンジ bỏ phần viết bảng để giữ nhịp nhanh
     const writing = r.mode === 'time' ? Promise.resolve() : calligraphy(el.stage, q.kanji);
 
@@ -883,7 +1136,9 @@
       node.classList.add('is-shaking');
     }
     charReact(el.buddy, 'bad', 900);
-    const spoken = readFull(q, choice.reading, 'is-wrong', choice.text, 'is-wrong');
+    // Chọn sai: chỉ báo bằng hình (không đọc câu lẫn âm sai), câu đang đọc (nếu có) vẫn đọc tiếp
+    readerMood(gameReader, 'is-wrong');
+    renderSentence(q, choice.text, 'is-wrong');
     if (!STAGE_MODES.includes(r.mode)) return;
 
     r.lives -= 1;
@@ -892,6 +1147,8 @@
       r.phase = 'ending';
       cancelAnimationFrame(r.rafId);
       lockChoices(true);
+      // hết mạng: lộ đáp án, đọc nguyên câu đúng một lần
+      const spoken = readFull(q, 'is-wrong', slotAnswer(q, type), 'is-reveal');
       afterAll([spoken], 1200, () => finishRun(false));
     }
   }
@@ -912,7 +1169,7 @@
     floatLabel(el.stage, slotAnswer(q, type), b.x + b.bw / 2, 60, true);
     charReact(el.buddy, 'bad', 900);
     lockChoices(true);
-    const spoken = readFull(q, q.answer, 'is-wrong', slotAnswer(q, type), 'is-reveal');
+    const spoken = readFull(q, 'is-wrong', slotAnswer(q, type), 'is-reveal');
 
     if (STAGE_MODES.includes(r.mode)) {
       r.queue.push(q); // câu bị bay mất phải làm lại sau
@@ -952,10 +1209,12 @@
     }
   }
 
-  function floatLabel(stage, text, x, y, isMiss) {
+  function floatLabel(stage, text, x, y, isMiss, iconName) {
     const label = document.createElement('div');
     label.className = 'float-label' + (isMiss ? ' is-miss' : '');
     label.textContent = text;
+    // text là dữ liệu nên giữ textContent; icon (chuỗi SVG cố định) chèn riêng phía sau
+    if (iconName) label.insertAdjacentHTML('beforeend', ` ${icon(iconName, 'label-icon')}`);
     label.style.left = `${clamp(x, 90, stage.clientWidth - 90)}px`;
     label.style.top = `${Math.max(y, 40)}px`;
     stage.append(label);
@@ -1069,7 +1328,7 @@
 
   function showResult({ title, stars, scoreLine, newFriends, missed }) {
     el.resultTitle.textContent = title;
-    el.resultStars.textContent = stars ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '';
+    el.resultStars.innerHTML = stars ? starsHtml(stars) : '';
     el.resultScore.innerHTML = scoreLine;
     el.resultFriends.innerHTML = '';
     newFriends.forEach((id) => {
@@ -1103,7 +1362,7 @@
   function parseStoryPage(text) {
     const segs = [];
     let last = 0;
-    const re = /〔(.+?):(.+?)〕/g;
+    const re = new RegExp(BLANK_RE.source, 'g');
     let m;
     while ((m = re.exec(text))) {
       if (m.index > last) segs.push({ type: 'text', text: text.slice(last, m.index) });
@@ -1114,14 +1373,19 @@
     return segs;
   }
 
-  function startStory(index) {
+  // key = lesson của truyện ('L01'... hoặc 'all')
+  function startStory(key) {
     stopRun();
+    const story = visibleStories().find((s) => s.lesson === key);
+    if (!story) {
+      renderMenu();
+      return;
+    }
     speech.unlock();
-    lastStart = { mode: 'story', key: index };
-    const story = STORIES[index];
-    newRun({ kind: 'story', mode: 'story', storyIndex: index, story, page: 0, mistakes: 0, missed: new Map(), segments: [], pos: 0, active: null, chunk: '' });
+    lastStart = { mode: 'story', key };
+    newRun({ kind: 'story', mode: 'story', storyKey: key, story, page: 0, mistakes: 0, missed: new Map(), segments: [], active: null, chunk: '' });
     mountCharacter(el.storyChar, story.character);
-    applyBackground(el.storyStage, story.lesson === 'all' ? 5 : story.lesson % 5);
+    applyBackground(el.storyStage, lessonBg(story.lesson));
     el.storyTitle.textContent = story.title;
     showVoiceNote();
     showScreen('story');
@@ -1132,13 +1396,19 @@
     const r = run;
     r.page = i;
     r.segments = parseStoryPage(r.story.pages[i]);
-    r.pos = 0;
+    r.chunk = pageText(r.segments);
     r.active = null;
     el.storyPage.textContent = `${i + 1} / ${r.story.pages.length}`;
     el.tray.innerHTML = '';
     renderStoryText();
-    later(readOn, 500);
+    // tải trước trang này và trang sau
+    speech.prefetch(r.chunk);
+    if (i + 1 < r.story.pages.length) speech.prefetch(pageText(parseStoryPage(r.story.pages[i + 1])));
+    later(readPage, 500);
   }
+
+  // Cả trang để đọc, ô trống thay bằng cách đọc đúng.
+  const pageText = (segs) => segs.map((s) => (s.type === 'text' ? s.text : s.reading)).join('');
 
   function renderStoryText() {
     const r = run;
@@ -1160,44 +1430,41 @@
     });
   }
 
-  // Đọc tiếp từ vị trí hiện tại đến ô trống kế tiếp, hoặc đến hết trang.
-  async function readOn() {
+  // Đọc nguyên trang (nguyên câu, có cả cách đọc của ô trống) rồi mới hỏi.
+  // Đáp án là thẻ chữ Hán nên nghe cách đọc không lộ đáp án (giống かんじ さがし).
+  async function readPage() {
     const r = run;
     if (!r || r.kind !== 'story') return;
-    let text = '';
-    let i = r.pos;
-    while (i < r.segments.length) {
-      const s = r.segments[i];
-      if (s.type === 'text') text += s.text;
-      else if (s.filled) text += s.reading;
-      else break;
-      i += 1;
-    }
-    r.pos = i;
-    r.chunk = text;
     speech.stop();
     const token = speech.token;
     readerMood(storyReader, null);
     readerTalk(storyReader, true);
-    await speech.say(text, token);
+    await speech.say(r.chunk, token);
     if (run !== r || token !== speech.token) return;
     readerTalk(storyReader, false);
+    askBlank();
+  }
 
-    if (i < r.segments.length) {
+  // Hỏi ô trống chưa điền đầu tiên (không đọc gì thêm); điền hết thì sang trang sau.
+  function askBlank() {
+    const r = run;
+    const i = r.segments.findIndex((s) => s.type === 'blank' && !s.filled);
+    if (i >= 0) {
       r.active = i;
+      readerMood(storyReader, null);
       storyReader.el.classList.add('is-hush');
       renderStoryText();
       showTray(r.segments[i]);
-    } else {
-      later(() => {
-        if (r.page + 1 < r.story.pages.length) openPage(r.page + 1);
-        else finishStory();
-      }, 900);
+      return;
     }
+    later(() => {
+      if (r.page + 1 < r.story.pages.length) openPage(r.page + 1);
+      else finishStory();
+    }, 900);
   }
 
   function showTray(seg) {
-    const lesson = run.story.lesson === 'all' ? -1 : run.story.lesson;
+    const lesson = run.story.lesson === 'all' ? null : run.story.lesson;
     const kanjis = shuffle([seg.kanji, ...kanjiDistractors(seg.kanji, seg.reading, 3, lesson, true)]);
     el.tray.innerHTML = '';
     selectedCard = null;
@@ -1273,7 +1540,6 @@
 
     if (kanji === seg.kanji) {
       seg.filled = true;
-      const blankIndex = r.active;
       r.active = null;
       storyReader.el.classList.remove('is-hush');
       readerMood(storyReader, 'is-right');
@@ -1286,12 +1552,11 @@
       }
       await calligraphy(el.storyStage, kanji);
       if (run !== r) return;
-      r.pos = blankIndex;
-      readOn();
+      askBlank();
       return;
     }
 
-    // Thả sai: chim đọc đoạn vừa đọc kèm âm của chữ đã thả, thẻ bị khoá
+    // Thả sai: chỉ báo bằng hình (không đọc), thẻ bị khoá, lát sau ô trống trở lại như cũ
     r.mistakes += 1;
     const plain = r.story.pages[r.page].replace(/〔(.+?):(.+?)〕/g, '$1');
     r.missed.set(`${seg.kanji}|${plain}`, { kanji: seg.kanji, answer: seg.reading, sentence: plain });
@@ -1303,15 +1568,12 @@
     }
     readerMood(storyReader, 'is-wrong');
     charReact(el.storyChar, 'bad', 900);
-    speech.stop();
-    const token = speech.token;
-    const tail = r.chunk.split(/[。！？」]/).pop();
-    readerTalk(storyReader, true);
-    await speech.say(tail + firstReading(kanji), token);
-    if (run !== r || token !== speech.token) return;
-    readerTalk(storyReader, false);
-    storyReader.el.classList.add('is-hush');
-    renderStoryText();
+    const blankIndex = r.active;
+    later(() => {
+      if (r.active !== blankIndex) return;
+      storyReader.el.classList.add('is-hush');
+      renderStoryText();
+    }, 900);
   }
 
   function finishStory() {
@@ -1319,7 +1581,7 @@
     const before = unlockedCharacters();
     stopRun();
     const stars = starsFor(r.mistakes);
-    progress.stars.story[r.storyIndex] = Math.max(progress.stars.story[r.storyIndex] || 0, stars);
+    progress.stars.story[r.storyKey] = Math.max(progress.stars.story[r.storyKey] || 0, stars);
     saveProgress();
     const newFriends = unlockedCharacters().filter((id) => !before.includes(id));
     showResult({ title: 'おしまい！', stars, scoreLine: `まちがい <strong>${r.mistakes}</strong>かい`, newFriends, missed: [...r.missed.values()] });
@@ -1352,40 +1614,107 @@
   }
 
   // ---------- おうちの ひと ----------
+  // Danh sách 80 chữ theo bài; mỗi chữ là 1 nút bật/tắt (aria-pressed). Đổi là lưu ngay.
+  function parentMessage(text, ok) {
+    el.parentMsg.textContent = text;
+    el.parentMsg.classList.toggle('is-ok', !!ok);
+  }
+
   function openParent() {
-    el.parentInput.value = loadDataText();
-    el.parentMsg.textContent = '';
-    el.parentMsg.classList.remove('is-ok');
+    renderParent();
+    parentMessage(migrateNote, false);
+    migrateNote = '';
     showScreen('parent');
   }
 
-  function saveParent() {
-    const text = el.parentInput.value;
-    const error = useData(text);
-    el.parentMsg.classList.toggle('is-ok', !error);
-    if (error) {
-      el.parentMsg.textContent = error;
-      return;
+  function renderParent() {
+    el.parentList.innerHTML = '';
+    lib.lessons.forEach((l) => {
+      const box = document.createElement('section');
+      box.className = 'parent-lesson';
+      box.innerHTML = '<div class="parent-lesson-head"><h2 class="parent-lesson-title"></h2>' +
+        '<button type="button" class="btn small secondary parent-lesson-toggle"></button></div><div class="kchips"></div>';
+      box.querySelector('.parent-lesson-title').textContent = `${l.index + 1} ${l.title}`;
+      const toggle = box.querySelector('.parent-lesson-toggle');
+      toggle.dataset.lesson = l.id;
+      toggle.addEventListener('click', () => toggleLesson(l));
+      const chips = box.querySelector('.kchips');
+      l.kanji.forEach((k) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'kchip';
+        btn.dataset.kanji = k.kanji;
+        btn.innerHTML = '<span class="kchip-k"></span><span class="kchip-r"></span>';
+        btn.querySelector('.kchip-k').textContent = k.kanji;
+        btn.querySelector('.kchip-r').textContent = [...k.on, ...k.kun].join('・');
+        btn.addEventListener('click', () => toggleKanji(k.kanji));
+        chips.append(btn);
+      });
+      el.parentList.append(box);
+    });
+    updateParent();
+  }
+
+  function updateParent() {
+    const on = new Set(onList);
+    el.parentList.querySelectorAll('.kchip').forEach((btn) => {
+      btn.setAttribute('aria-pressed', String(on.has(btn.dataset.kanji)));
+    });
+    el.parentList.querySelectorAll('.parent-lesson-toggle').forEach((btn) => {
+      const lesson = lib.lessons[lessonNo(btn.dataset.lesson)];
+      const allOn = lesson.kanji.every((k) => on.has(k.kanji));
+      btn.textContent = allOn ? 'ぜんぶ OFF' : 'ぜんぶ ON';
+    });
+    el.parentCount.textContent = `${onList.length}/${lib.kanjiMap.size}`;
+  }
+
+  const tooFewMessage = () => `かんじは ${MIN_KANJI}こ いじょう ONに してね。`;
+
+  function applyOnList(list) {
+    setOnList(list);
+    updateParent();
+    parentMessage('ほぞん しました。', true);
+  }
+
+  function toggleKanji(c) {
+    if (onList.includes(c)) {
+      if (onList.length <= MIN_KANJI) {
+        parentMessage(tooFewMessage(), false);
+        return;
+      }
+      applyOnList(onList.filter((x) => x !== c));
+    } else {
+      applyOnList([...onList, c]);
     }
-    try { localStorage.setItem(KEY_DATA, text); } catch { /* bỏ qua khi trình duyệt chặn lưu */ }
-    el.parentMsg.textContent = 'ほぞん しました。';
+  }
+
+  function toggleLesson(lesson) {
+    const chars = lesson.kanji.map((k) => k.kanji);
+    if (chars.every((c) => onList.includes(c))) {
+      const rest = onList.filter((c) => !chars.includes(c));
+      if (rest.length < MIN_KANJI) {
+        parentMessage(tooFewMessage(), false);
+        return;
+      }
+      applyOnList(rest);
+    } else {
+      applyOnList([...onList, ...chars]);
+    }
   }
 
   // ---------- Sự kiện ----------
   $('btn-zukan').addEventListener('click', renderZukan);
   $('btn-parent').addEventListener('click', openParent);
   $('btn-parent-back').addEventListener('click', renderMenu);
-  $('btn-parent-save').addEventListener('click', saveParent);
   $('btn-parent-default').addEventListener('click', () => {
-    el.parentInput.value = DEFAULT_DATA;
-    el.parentMsg.textContent = '';
+    if (!window.confirm(`ONの かんじを はじめの ${DEFAULT_ON.length}こに もどしますか？`)) return;
+    applyOnList(DEFAULT_ON);
   });
   $('btn-parent-reset').addEventListener('click', () => {
     if (!window.confirm('ほしと きろくを ぜんぶ けしますか？')) return;
     progress = emptyProgress();
     saveProgress();
-    el.parentMsg.classList.add('is-ok');
-    el.parentMsg.textContent = 'きろくを けしました。';
+    parentMessage('きろくを けしました。', true);
   });
   $('btn-map-back').addEventListener('click', renderMenu);
   $('btn-zukan-back').addEventListener('click', renderMenu);
@@ -1415,7 +1744,10 @@
   });
 
   // ---------- Khởi động ----------
+  hydrateIcons(document);
+  speech.onchange = showVoiceNote;
   speech.init();
-  if (useData(loadDataText())) useData(DEFAULT_DATA);
+  setOnList(loadOnList());
   renderMenu();
+  if (migrateNote) toast(migrateNote);
 })();

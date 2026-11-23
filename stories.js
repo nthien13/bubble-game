@@ -1,8 +1,9 @@
-// Truyện おはなし. Mỗi truyện gắn với 1 bài (lesson là số thứ tự bài, bắt đầu từ 0; 'all' là ô ぜんぶ).
+// Truyện おはなし. Mỗi truyện gắn với 1 bài (lesson là id bài trong kanji-library.js, ví dụ 'L01'; 'all' là ô ぜんぶ).
+// Sao của truyện lưu theo lesson, nên mỗi bài chỉ có 1 truyện. Truyện chỉ hiện khi mọi chữ Hán trong ô trống đều đang bật (ON).
 // Ô trống viết 〔chữ Hán:cách đọc〕. Phần còn lại là ひらがな, có cách chữ như sách lớp 1.
 window.GAME_STORIES = [
   {
-    lesson: 0,
+    lesson: 'L01',
     title: 'ぷにまると 大きな き',
     character: 'punimaru',
     pages: [
@@ -15,7 +16,7 @@ window.GAME_STORIES = [
     ],
   },
   {
-    lesson: 1,
+    lesson: 'L02',
     title: 'かっぱの いけ',
     character: 'kappa',
     pages: [
@@ -28,7 +29,7 @@ window.GAME_STORIES = [
     ],
   },
   {
-    lesson: 2,
+    lesson: 'L03',
     title: 'からかさおばけと かぜの ひ',
     character: 'karakasa',
     pages: [
@@ -41,7 +42,7 @@ window.GAME_STORIES = [
     ],
   },
   {
-    lesson: 3,
+    lesson: 'L04',
     title: 'ちょうちんおばけの がっこう',
     character: 'chochin',
     pages: [
@@ -54,7 +55,7 @@ window.GAME_STORIES = [
     ],
   },
   {
-    lesson: 4,
+    lesson: 'L05',
     title: 'あかおにと あめの ひ',
     character: 'akaoni',
     pages: [
